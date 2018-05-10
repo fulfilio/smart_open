@@ -39,7 +39,7 @@ WRITE_BINARY = 'wb'
 MODES = (READ_BINARY, WRITE_BINARY)
 """Allowed I/O modes for working with S3."""
 
-BINARY_NEWLINE = b'\n'
+BINARY_NEWLINE = (b'\r\n', b'\r', b'\n')
 DEFAULT_BUFFER_SIZE = 128 * 1024
 
 
@@ -234,10 +234,12 @@ class BufferedInputBase(io.BufferedIOBase):
             # This is sub-optimal, but better than the alternative: wrapping
             # .index in a try..except, because that is slower.
             #
-            if self._line_terminator in self._buffer:
-                next_newline = self._buffer.index(self._line_terminator)
-                the_line.write(self._read_from_buffer(next_newline + 1))
-                break
+            for terminator in self._line_terminator:
+                if terminator in self._buffer:
+                    next_newline = self._buffer.index(terminator)
+                    the_line.write(self._read_from_buffer(
+                        next_newline + len(terminator)))
+                    return the_line.getvalue()
             else:
                 the_line.write(self._read_from_buffer(len(self._buffer)))
                 self._fill_buffer(self._buffer_size)
